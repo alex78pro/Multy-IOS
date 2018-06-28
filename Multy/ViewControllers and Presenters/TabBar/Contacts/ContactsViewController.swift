@@ -18,6 +18,14 @@ class ContactsViewController: UIViewController, AnalyticsProtocol, CancelProtoco
     @IBOutlet weak var noContactsImageView: UIImageView!
     @IBOutlet weak var noContactsLabel: UILabel!
     
+    lazy var refreshControl: UIRefreshControl = {
+        let refreshControl = UIRefreshControl()
+        refreshControl.addTarget(self, action: #selector(self.handleRefresh(_:)), for: UIControlEvents.valueChanged)
+        refreshControl.tintColor = .blue
+        
+        return refreshControl
+    }()
+    
     override func viewDidLoad() {
         super.viewDidLoad()
         
@@ -30,6 +38,7 @@ class ContactsViewController: UIViewController, AnalyticsProtocol, CancelProtoco
         
         presenter.tabBarFrame = tabBarController?.tabBar.frame
         presenter.registerCell()
+        tableView.addSubview(self.refreshControl)
     }
     
     override func viewDidAppear(_ animated: Bool) {
@@ -47,6 +56,10 @@ class ContactsViewController: UIViewController, AnalyticsProtocol, CancelProtoco
     
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
+    }
+    
+    @objc func handleRefresh(_ refreshControl: UIRefreshControl) {
+        presenter.fetchPhoneContacts()
     }
     
     func ipadFix() {

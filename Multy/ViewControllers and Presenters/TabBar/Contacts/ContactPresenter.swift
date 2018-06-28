@@ -53,6 +53,9 @@ class ContactPresenter: NSObject, ContactsProtocol {
         let title = contact!.addresses[IndexPath.row].address
         let actionSheet = UIAlertController(title: "", message: title, preferredStyle: .actionSheet)
         actionSheet.addAction(UIAlertAction(title: localize(string: Constants.cancelString), style: .cancel, handler: nil))
+        actionSheet.addAction(UIAlertAction(title: localize(string: Constants.copyToClipboardString), style: .default, handler: { (action) in
+            UIPasteboard.general.string = title
+        }))
         actionSheet.addAction(UIAlertAction(title: localize(string: Constants.deleteFromContact), style: .default, handler: { [unowned self] (action) in
             self.mainVC?.view.isUserInteractionEnabled = false
             self.deleteAddress(title, from: self.contact!.contactId!, { [unowned self] (result) in

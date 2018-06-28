@@ -10,6 +10,7 @@ class ContactsPresenter: NSObject, ContactsProtocol {
     var tabBarFrame: CGRect?
     var contacts = [EPContact]() {
         didSet {
+            mainVC!.refreshControl.endRefreshing()
             mainVC?.tableView.reloadData()
         }
     }
