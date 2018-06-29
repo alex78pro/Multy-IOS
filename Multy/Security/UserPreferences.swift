@@ -98,6 +98,10 @@ class UserPreferences : NSObject {
         
         if cipheredData == nil || aes == nil {
             executedFunctions.append(completion)
+            
+            if aes != nil {
+                
+            }
        //     executedFunction = completion
             
             return
@@ -276,5 +280,10 @@ class UserPreferences : NSObject {
         } else {
             return 0
         }
+    }
+    
+    func resetUserPreferences() {
+        aes = nil
+        generateAES()
     }
 }
