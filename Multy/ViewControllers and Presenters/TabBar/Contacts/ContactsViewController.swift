@@ -7,6 +7,7 @@ import UIKit
 private typealias TableViewDelegate = ContactsViewController
 private typealias TableViewDataSource = ContactsViewController
 private typealias LocalizeDelegate = ContactsViewController
+private typealias AnalyticsDelegate = ContactsViewController
 
 class ContactsViewController: UIViewController, AnalyticsProtocol, CancelProtocol {
 
@@ -14,6 +15,10 @@ class ContactsViewController: UIViewController, AnalyticsProtocol, CancelProtoco
     var presenter = ContactsPresenter()
     @IBOutlet weak var donationTopConstraint: NSLayoutConstraint!
     @IBOutlet weak var tableView: UITableView!
+    @IBOutlet weak var noContactsImageView: UIImageView!
+    @IBOutlet weak var noContactsLabel: UILabel!
+    @IBOutlet weak var floatingView: UIView!
+    @IBOutlet weak var addNewBtn: UIButton!
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -27,7 +32,6 @@ class ContactsViewController: UIViewController, AnalyticsProtocol, CancelProtoco
         
         presenter.tabBarFrame = tabBarController?.tabBar.frame
         presenter.registerCell()
-        presenter.fetchPhoneContacts()
     }
     
     override func viewDidAppear(_ animated: Bool) {
@@ -37,10 +41,12 @@ class ContactsViewController: UIViewController, AnalyticsProtocol, CancelProtoco
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         
+        presenter.fetchPhoneContacts()
+        
         tabBarController?.tabBar.frame = presenter.tabBarFrame!
         (self.tabBarController as! CustomTabBarViewController).changeViewVisibility(isHidden: false)
     }
-    
+        
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
     }
@@ -55,17 +61,15 @@ class ContactsViewController: UIViewController, AnalyticsProtocol, CancelProtoco
         unowned let weakSelf =  self
         self.presentDonationAlertVC(from: weakSelf, with: "io.multy.addingContacts50")
         (self.tabBarController as! CustomTabBarViewController).changeViewVisibility(isHidden: true)
-        logAnalytics()
-    }
-    
-    func logAnalytics() {
-        //FIXME: add user analytics
-//        sendDonationAlertScreenPresentedAnalytics(code: donationForContactSC)
+        logDonationAnalytics()
     }
     
     func setupView() {
         self.donatView.layer.borderColor = #colorLiteral(red: 0, green: 0.4784313725, blue: 0.9994150996, alpha: 1)
         self.donatView.layer.borderWidth = 1
+        
+        floatingView.layer.cornerRadius = floatingView.frame.width/2
+        addNewBtn.makeBlueGradient()
     }
     
     func cancelAction() {
@@ -82,20 +86,23 @@ class ContactsViewController: UIViewController, AnalyticsProtocol, CancelProtoco
     }
     
     @IBAction func addUser(_ sender: Any) {
-//        updateMyContact()
-        
-        let contactPickerScene = EPContactsPicker(delegate: self, multiSelection:false, subtitleCellType: SubtitleCellValue.email)
-        let navigationController = UINavigationController(rootViewController: contactPickerScene)
-        self.present(navigationController, animated: true, completion: nil)
-
-        
-        logAnalytics()
+        presentiPhoneContacts()
+        logContactsAnalytics()
+    }
+    
+    override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
+        if segue.identifier == Constants.Storyboard.contactVCSegueID {
+            let contactVC = segue.destination as! ContactViewController
+            let indexPath = sender as! IndexPath
+            contactVC.presenter.contact = presenter.contacts[indexPath.row]
+            contactVC.presenter.indexPath = indexPath
+        }
     }
 }
 
 extension TableViewDelegate : UITableViewDelegate {
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
-        
+        performSegue(withIdentifier: "contactVC", sender: indexPath)
     }
     
     func tableView(_ tableView: UITableView, heightForRowAt indexPath: IndexPath) -> CGFloat {
@@ -104,6 +111,16 @@ extension TableViewDelegate : UITableViewDelegate {
     
     func tableView(_ tableView: UITableView, estimatedHeightForRowAt indexPath: IndexPath) -> CGFloat {
         return 60
+    }
+}
+
+extension AnalyticsDelegate {
+    func logDonationAnalytics() {
+        sendDonationAlertScreenPresentedAnalytics(code: donationForContactSC)
+    }
+    
+    func logContactsAnalytics() {
+        sendAnalyticsEvent(screenName: contactsScreen, eventName: openiPhoneContacts)
     }
 }
 
@@ -133,8 +150,10 @@ extension ContactsViewController: EPPickerDelegate {
             return
         }
         
-        presenter.updateContactInfo(contact.contactId!, with: nil, nil, nil) { [unowned self] (result) in
-            self.presenter.fetchPhoneContacts()
+        presenter.updateContactInfo(contact.contactId!, withAddress: nil, nil, nil) { [unowned self] (result) in
+            DispatchQueue.main.async {
+                self.presenter.fetchPhoneContacts()
+            }
         }
     }
 }
