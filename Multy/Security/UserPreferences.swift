@@ -102,11 +102,6 @@ class UserPreferences : NSObject {
         if cipheredData == nil || aes == nil {
             executedFunctions.append(completion)
             
-            if aes != nil {
-                
-            }
-       //     executedFunction = completion
-            
             return
         }
         

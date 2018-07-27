@@ -17,7 +17,7 @@ class MasterKeyGenerator : NSObject {
     fileprivate var executedFunction : ((Data?, Error?, String?) -> Void)?
     
     //////////////////////////////////////////////////////
-    fileprivate func generateMK() -> Future<Data> {
+    func generateMK() -> Future<Data> {
         
         let promise = Promise<Data>()
         

@@ -215,9 +215,37 @@ class AssetsViewController: UIViewController, QrDataProtocol, AnalyticsProtocol 
             }
         }
         
+        let date = Date()
+//        for counter in 1...100 {
+//            MasterKeyGenerator.shared.generateMK().finally(queue: .main) {
+//                switch $0.state {
+//                case .result(let value):
+//                    print("\(counter)\n")
+//                    print(value.base64EncodedString())
+//
+//                    if counter == 100 {
+//                        print("---------------------------------------------------------")
+//                        print(Date().timeIntervalSince(date))
+//                        print("---------------------------------------------------------")
+//                    }
+//                case .error(let err):
+//                    print(String(describing: err))
+//                case .cancelled:
+//                    print("future is in a cancelled state")
+//                case .unresolved:
+//                    print("this really cannot be if any chaining block is executed")
+//                }
+//            }
+//        }
+        
         for counter in 1...100 {
-            print(counter)
-            print(MasterKeyGenerator.shared.masterKey().masterKey?.base64EncodedString())
+            MasterKeyGenerator.shared.generateMasterKey { (data, error, message) in
+                if counter == 100 {
+                    print("---------------------------------------------------------")
+                    print(Date().timeIntervalSince(date))
+                    print("---------------------------------------------------------")
+                }
+            }
         }
     }
     
