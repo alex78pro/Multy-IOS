@@ -30,6 +30,7 @@ target 'Multy' do
   pod 'SwiftyContacts'
   pod 'UICircularProgressRing'
   pod 'Hash2Pics'
+  pod 'Promis'
   
   target 'MultyTests' do
       inherit! :search_paths
