@@ -5,6 +5,7 @@
 import UIKit
 import Foundation
 import CryptoSwift
+import Promis
 
 class UserPreferences : NSObject {
     static let shared = UserPreferences()
@@ -32,6 +33,40 @@ class UserPreferences : NSObject {
         super.init()
         
         generateAES()
+        
+        generateAESPROMISE().finally(queue: .main) { [unowned self] in
+            switch $0.state {
+            case .result(let aes):
+                self.aes = aes
+            case .error(let error):
+                print("error: \(error)")
+            case .cancelled:
+                print("future is in a cancelled state")
+            case .unresolved:
+                print("this really cannot be if any chaining block is executed")
+            }
+        }
+    }
+    
+    func generateAESPROMISE() -> Future<AES> {
+        let promise = Promise<AES>()
+        let iv = getAESiv()
+        
+        generateUserDefaultsPasswordPROMISE().finally(queue: .main) {
+            switch $0.state {
+            case .result(let pass):
+                let aes = try! AES(key: pass, blockMode: .CBC(iv: iv), padding: .pkcs5)
+                promise.setResult(aes)
+            case .error(let error):
+                promise.setError(error)
+            case .cancelled:
+                print("future is in a cancelled state")
+            case .unresolved:
+                print("this really cannot be if any chaining block is executed")
+            }
+        }
+        
+        return promise.future
     }
     
     fileprivate func generateAES() {
@@ -61,6 +96,29 @@ class UserPreferences : NSObject {
     }
     
     //MARK: main activity
+    func generateUserDefaultsPasswordPROMISE() -> Future<[UInt8]> {
+        let promise = Promise<[UInt8]>()
+        
+        MasterKeyGenerator.shared.generateMK().finally(queue: .main) {
+            switch $0.state {
+            case .result(let data):
+                let salt = data.sha3(.keccak256)
+                let pass = salt.sha3(.keccak256)
+                let databasePassword = try! PKCS5.PBKDF2(password: Array(pass), salt: Array(salt)).calculate()
+                
+                promise.setResult(databasePassword)
+            case .error(let error):
+                promise.setError(error)
+            case .cancelled:
+                print("future is in a cancelled state")
+            case .unresolved:
+                print("this really cannot be if any chaining block is executed")
+            }
+        }
+        
+        return promise.future
+    }
+    
     func generateUserDefaultsPassword(completion: @escaping (_ databasePassword: [UInt8]?, _ error: Error?) -> ()) {
         MasterKeyGenerator.shared.generateMasterKey { (data, error, string) in
             
@@ -94,6 +152,23 @@ class UserPreferences : NSObject {
         loggingPrint(print("writeCiperedDatabasePassword:\n\n\(generatedPass.base64EncodedString())\n\n\(cipheredData.base64EncodedString())"))
         
         UserDefaults.standard.set(cipheredData, forKey: "databasePassword")
+    }
+    
+    func getAndDecryptDatabasePasswordPROMISE() -> Future<Data> {
+        let promise = Promise<Data>()
+        
+        let cipheredData = UserDefaults.standard.data(forKey: "databasePassword")
+        
+        if cipheredData == nil || aes == nil {
+            
+            return promise.future
+        }
+        
+        let originalArrayData = try! aes?.decrypt(cipheredData!.bytes)
+        
+        promise.setResult(originalArrayData!.data)
+        
+        return promise.future
     }
     
     func getAndDecryptDatabasePassword(completion: @escaping (_ password: Data?, _ error: Error?) -> ()) {

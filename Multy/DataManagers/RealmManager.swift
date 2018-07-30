@@ -5,6 +5,7 @@
 import UIKit
 import RealmSwift
 import Realm
+import Promis
 
 private typealias RealmMigrationManager = RealmManager
 private typealias RecentAddressManager = RealmManager
@@ -39,6 +40,107 @@ class RealmManager: NSObject {
             
             return  "default_" + nameSuffix + ".realm"
         }
+    }
+    
+    func createConfig(from pass: Data) {
+        let realmName = getCurrentRealmName(pass)
+        
+        let realmConfig = Realm.Configuration(fileURL: URL(fileURLWithPath: RLMRealmPathForFile(realmName), isDirectory: false),
+                                              encryptionKey: pass,
+                                              schemaVersion: self.schemaVersion,
+                                              migrationBlock: { migration, oldSchemaVersion in
+                                                if oldSchemaVersion < 7 {
+                                                    self.migrateFrom6To7(with: migration)
+                                                }
+                                                if oldSchemaVersion < 8 {
+                                                    self.migrateFrom7To8(with: migration)
+                                                }
+                                                if oldSchemaVersion < 9 {
+                                                    self.migrateFrom8To9(with: migration)
+                                                }
+                                                if oldSchemaVersion < 10 {
+                                                    self.migrateFrom9To10(with: migration)
+                                                }
+                                                if oldSchemaVersion < 11 {
+                                                    self.migrateFrom10To11(with: migration)
+                                                }
+                                                if oldSchemaVersion < 12 {
+                                                    self.migrateFrom11To12(with: migration)
+                                                }
+                                                if oldSchemaVersion < 13 {
+                                                    self.migrateFrom12To13(with: migration)
+                                                }
+                                                if oldSchemaVersion < 14 {
+                                                    self.migrateFrom13To14(with: migration)
+                                                }
+                                                if oldSchemaVersion < 15 {
+                                                    self.migrateFrom14To15(with: migration)
+                                                }
+                                                if oldSchemaVersion < 16 {
+                                                    self.migrateFrom15To16(with: migration)
+                                                }
+                                                if oldSchemaVersion < 17 {
+                                                    self.migrateFrom16To17(with: migration)
+                                                }
+                                                if oldSchemaVersion < 18 {
+                                                    self.migrateFrom17To18(with: migration)
+                                                }
+                                                if oldSchemaVersion < 19 {
+                                                    self.migrateFrom18To19(with: migration)
+                                                }
+                                                if oldSchemaVersion < 20 {
+                                                    self.migrateFrom19To20(with: migration)
+                                                }
+                                                if oldSchemaVersion < 21 {
+                                                    self.migrateFrom20To21(with: migration)
+                                                }
+                                                if oldSchemaVersion <= 22 {
+                                                    self.migrateFrom21To22(with: migration)
+                                                }
+                                                if oldSchemaVersion <= 23 {
+                                                    self.migrateFrom22To23(with: migration)
+                                                }
+                                                if oldSchemaVersion <= 24 {
+                                                    self.migrateFrom23To24(with: migration)
+                                                }
+        })
+        
+        config = realmConfig
+    }
+    
+    public func getRealmPROMISE() -> Future<Realm> {
+        let promise = Promise<Realm>()
+        
+        if realm != nil {
+            promise.setResult(realm!)
+        }
+        
+        UserPreferences.shared.getAndDecryptDatabasePasswordPROMISE().finally(queue: .main) { [unowned self] in
+            switch $0.state {
+            case .result(let pass):
+                self.createConfig(from: pass)
+                
+                do {
+                    let realm = try Realm(configuration: self.config!)
+                    self.realm = realm
+                    
+                    promise.setResult(self.realm!)
+                } catch let error {
+                    try! FileManager.default.removeItem(at: Realm.Configuration.defaultConfiguration.fileURL!)
+                    promise.setError(error)
+                    
+                    fatalError("Error opening Realm: \(error)")
+                }
+            case .error(let error):
+                promise.setError(error)
+            case .cancelled:
+                print("future is in a cancelled state")
+            case .unresolved:
+                print("this really cannot be if any chaining block is executed")
+            }
+        }
+        
+        return promise.future
     }
     
     public func getRealm(completion: @escaping (_ realm: Realm?, _ error: NSError?) -> ()) {
