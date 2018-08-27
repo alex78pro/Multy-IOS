@@ -38,6 +38,7 @@ class ImportWalletPresenter: NSObject {
                     self.getEOSAcc(by: value["publicKey"]! as! String, privateKey: privateKey)
                     break;
                 case .failure(let error):
+                    self.imoprtVC?.presentWrongDataAlert()
                     print(error)
                     break;
                 }

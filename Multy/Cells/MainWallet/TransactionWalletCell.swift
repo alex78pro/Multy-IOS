@@ -71,7 +71,7 @@ class TransactionWalletCell: UITableViewCell {
 //            self.addressLabel.text = wallet.outcomingTxAddress(for: histObj)
 //        }
         
-        if histObj.txStatus.intValue < 0 /* rejected tx*/ {
+        if histObj.txStatus.intValue <= 0 /* rejected tx*/ {
             self.timeLabel.text = localize(string: Constants.unableToSendString)
         } else {
             self.timeLabel.text = dateFormatter.string(from: histObj.blockTime)
