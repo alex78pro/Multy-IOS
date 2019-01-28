@@ -137,26 +137,23 @@ extension DataManager {
                 } else {
                     //MARK: names
                     var paramsDict = NSMutableDictionary()
+                    
+                    params["deviceID"] = "iOS \(UIDevice.current.name)"
+                    params["deviceType"] = 1
+                    params["pushToken"] = ApiManager.shared.pushToken
+                    params["appVersion"] = self.appVersion()
+                    
+                    
                     if rootKey == nil {
                         let seedPhraseString = self.coreLibManager.createMnemonicPhraseArray().joined(separator: " ")
                         params["userID"] = self.getRootString(from: seedPhraseString).0
-                        params["deviceID"] = "iOS \(UIDevice.current.name)"
-                        params["deviceType"] = 1
-                        params["pushToken"] = ApiManager.shared.pushToken
-                        params["appVersion"] = self.appVersion()
                         
                         paramsDict = NSMutableDictionary(dictionary: params)
                         
                         paramsDict["seedPhrase"] = seedPhraseString
                         paramsDict["binaryData"] = self.coreLibManager.createSeedBinaryData(from: seedPhraseString)?.convertToHexString()
-                        
-                        self.apiManager.userID = params["userID"] as! String
                     } else {
                         params["userID"] = self.getRootString(from: rootKey!).0
-                        params["deviceID"] = "iOS \(UIDevice.current.name)"//UUID().uuidString
-                        params["deviceType"] = 1
-                        params["pushToken"] = ApiManager.shared.pushToken
-                        params["appVersion"] = self.appVersion()
                         
                         paramsDict = NSMutableDictionary(dictionary: params)
                         
@@ -164,14 +161,13 @@ extension DataManager {
                         paramsDict["binaryData"] = hexBinData
                         paramsDict["backupSeedPhrase"] = rootKey
                         
-                        #if DEBUG
-                        print(paramsDict)
-                        #endif
-                        
-                        self.apiManager.userID = params["userID"] as! String
+                        if isDebug {
+                            print(paramsDict)
+                        }
                     }
                     
-                    self.realmManager.updateAccount(paramsDict, completion: { (account, error) in
+                    self.apiManager.userID = params["userID"] as! String
+                    self.updateAccount(paramsDict, completion: { (account, error) in
                         
                     })
                 }
@@ -182,7 +178,7 @@ extension DataManager {
                 
                 self.apiManager.auth(with: params, completion: { (dict, error) in
                     if dict != nil {
-                        self.realmManager.updateAccount(dict!, completion: { (account, error) in
+                        self.updateAccount(dict!, completion: { (account, error) in
                             UserDefaults.standard.set(false, forKey: "isFirstLaunch")
                             completion(account, error)
                         })
@@ -227,12 +223,12 @@ extension DataManager {
     }
     
     func getWalletsVerbose(completion: @escaping (_ walletsArr: NSArray?,_ error: Error?) -> ()) {
-        apiManager.getWalletsVerbose() { (answer, err) in
+        apiManager.getWalletsVerbose() { [unowned self] (answer, err) in
             if err == nil {
                 let dict = NSMutableDictionary()
                 dict["topindexes"] = answer!["topindexes"]
                 
-                DataManager.shared.realmManager.updateAccount(dict, completion: { (_, _) in })
+                self.updateAccount(dict, completion: { (_, _) in })
                 
                 if (answer?["code"] as? NSNumber)?.intValue == 200 {
                     print("getWalletsVerbose:\n \(answer ?? ["":""])")

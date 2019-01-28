@@ -262,6 +262,7 @@ class SendPresenter: NSObject {
     }
     
     func getWallets() {
+        DataManager.shared.apiManager.real
         DataManager.shared.getAccount { [unowned self] (acc, err) in
             if err == nil {
                 // MARK: check this

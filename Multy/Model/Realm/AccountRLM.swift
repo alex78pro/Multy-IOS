@@ -28,12 +28,7 @@ class AccountRLM: Object {
     
     var topIndexes = List<TopIndexRLM>()
     
-    @objc dynamic var walletCount: NSNumber = 0
-    var wallets = List<UserWalletRLM>() {
-        didSet {
-            walletCount = NSNumber(value: wallets.count)
-        }
-    }
+//    var wallets = List<UserWalletRLM>()
     
     func isSeedPhraseSaved() -> Bool {
         return seedPhrase == ""

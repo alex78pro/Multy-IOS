@@ -16,40 +16,27 @@ extension DataManager {
     }
     
     func writeSeedPhrase(_ seedPhrase : String, completion: @escaping (_ error: NSError?) -> ()) {
-        realmManager.writeSeedPhrase(seedPhrase) { (error) in
-            completion(error)
-        }
+        realmManager.writeSeedPhrase(seedPhrase, completion: completion)
     }
     
     func deleteSeedPhrase(completion: @escaping (_ error: NSError?) -> ()) {
-        realmManager.deleteSeedPhrase { (error) in
-            completion(error)
-        }
+        realmManager.deleteSeedPhrase(completion: completion)
     }
     
     func getSeedPhrase(completion: @escaping (_ seedPhrase: String?, _ error: NSError?) -> ()) {
-        realmManager.getSeedPhrase { (seedPhrase, error) in
-            completion(seedPhrase, error)
-        }
+        realmManager.getSeedPhrase(completion: completion)
     }
     
-    func createWallet(from walletDict: Dictionary<String, Any>,
-                      completion: @escaping (_ wallet: UserWalletRLM?, _ error: NSError?) -> ()) {
-        realmManager.createWallet(walletDict) { (wallet, error) in
-            completion(wallet, error)
-        }
+    func createWallet(from walletDict: Dictionary<String, Any>, completion: @escaping (_ wallet: UserWalletRLM?, _ error: NSError?) -> ()) {
+        realmManager.createWallet(walletDict, completion: completion)
     }
     
     func getExchangePrice(completion: @escaping (_ exchangePrice : ExchangePriceRLM?, _ error: NSError?) -> ())  {
-        realmManager.getExchangePrice { (exchangePrice, error) in
-            completion(exchangePrice, error)
-        }
+        realmManager.getExchangePrice(completion: completion)
     }
     
     func getAccount(completion: @escaping (_ acc: AccountRLM?, _ error: NSError?) -> ()) {
-        realmManager.getAccount { (acc, err) in
-            completion(acc, err)
-        }
+        realmManager.getAccount(completion: completion)
     }
     
     func isAccountExists(completion: @escaping (_ isExists: Bool) -> ()) {
@@ -57,12 +44,9 @@ extension DataManager {
             completion(acc != nil)
         }
     }
-
     
     func updateAccount(_ accountDict: NSDictionary, completion: @escaping (_ account : AccountRLM?, _ error: NSError?) -> ()) {
-        realmManager.updateAccount(accountDict) { (account, error) in
-            completion(account, error)
-        }
+        realmManager.updateAccount(accountDict, completion: completion)
     }
     
     func isThereDefaultRealmFile() -> Bool {
@@ -125,7 +109,7 @@ extension DataManager {
     func updateToken(_ token: String) {
         let tokenData = ["token" : token] as NSDictionary;
         apiManager.token = token
-        realmManager.updateAccount(tokenData) { (_, _) in }
+        updateAccount(tokenData) { (_, _) in }
     }
     
     func getWallet(primaryKey: String, completion: @escaping(_ result: Result<UserWalletRLM, String>) -> ()) {

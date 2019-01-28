@@ -9,8 +9,8 @@ typealias BricksViewInfoDelegate = AccountType
 
 enum AccountType: Int, CaseIterable {
     case
-    multy =     0,
-    metamask =  1
+    multy =     1,
+    metamask =  2
     
     init(wordsCount: Int) {
         switch wordsCount {

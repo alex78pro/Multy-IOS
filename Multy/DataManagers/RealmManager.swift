@@ -20,7 +20,7 @@ private typealias GetObjectsManager = RealmManager
 class RealmManager: NSObject {
     static let shared = RealmManager()
     
-    private var realm : Realm? = nil {
+    private(set) var realm : Realm? = nil {
         didSet {
             if realm != nil {
                 tokensLinkedInfo { [unowned self] in
@@ -162,6 +162,8 @@ class RealmManager: NSObject {
                                                     if oldSchemaVersion <= 33 {
                                                         self.migrateFrom32To33(with: migration)
                                                     }
+                                                    
+                                                    //put here all changes for release 1.5
                                                     if oldSchemaVersion <= 34 {
                                                         self.migrateFrom33To34(with: migration)
                                                     }
@@ -240,22 +242,6 @@ class RealmManager: NSObject {
                         for newIndex in newTopIndexes {
                             accountRLM.topIndexes.append(newIndex)
                         }
-                    }
-                    
-                    if accountDict["wallets"] != nil && !(accountDict["wallets"] is NSNull) {
-                        let walletsList = accountDict["wallets"] as! List<UserWalletRLM>
-                        
-                        for wallet in walletsList {
-                            let walletFromDB = realm.object(ofType: UserWalletRLM.self, forPrimaryKey: wallet.id)
-                            
-                            if walletFromDB != nil {
-                                realm.add(wallet, update: true)
-                            } else {
-                                accountRLM.wallets.append(wallet)
-                            }
-                        }
-                        
-                        accountRLM.walletCount = NSNumber(value: accountRLM.wallets.count)
                     }
                     
                     realm.add(accountRLM, update: true)
@@ -1376,6 +1362,18 @@ extension UpdateObjectsManager {
             default:
                 return
             }
+        }
+    }
+    
+    func replace(objects: [Object], of class: String) {
+        getRealm { [weak self] (realmOpt, error) in
+            guard let realm = realmOpt, self != nil else {
+                return
+            }
+            
+            self!.realm = realm
+            
+            
         }
     }
     
