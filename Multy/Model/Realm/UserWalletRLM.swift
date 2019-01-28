@@ -25,7 +25,7 @@ enum WalletBrokenState: Int, CaseIterable {
 }
 
 enum WalletProperty: String {
-    case id, accountType, lastActivityTimestamp, availableAmount
+    case id, accountType, lastActivityTimestamp, availableAmount, isDeleted, multisigWallet
 }
 
 class UserWalletRLM: Object {
@@ -49,6 +49,7 @@ class UserWalletRLM: Object {
     
     @objc dynamic var brokenState = NSNumber(value: 0)
     @objc dynamic var accountType = NSNumber(value: DataManager.shared.accountType.rawValue)
+    @objc dynamic var isDeleted = false
     
     var changeAddressIndex: UInt32 {
         get {
@@ -75,7 +76,7 @@ class UserWalletRLM: Object {
     
     var isEmpty: Bool {
         get {
-            return sumInCryptoString == "0" || sumInCryptoString == "0,0"
+            return sumInCryptoString == "0" || sumInCryptoString == "0.0" || sumInCryptoString == "0,0"
         }
     }
     
@@ -207,12 +208,12 @@ class UserWalletRLM: Object {
         return walletID.int32Value < 0
     }
     
-    var isImportedForPrimaryKey: Bool {
+    var isImportedOrFixed: Bool {
         return walletID.int32Value < 0 || isWalletFixed
     }
     
     var isImportedHasKey: Bool {
-        if isImportedForPrimaryKey {
+        if isImportedOrFixed {
             return importedPrivateKey != ""
         } else {
             return true
@@ -413,33 +414,33 @@ class UserWalletRLM: Object {
     public class func initWithInfo(walletInfo: NSDictionary) -> UserWalletRLM {
         let wallet = UserWalletRLM()
         
-        if let privateKey = walletInfo["importedPrivateKey"] {
-            wallet.importedPrivateKey = privateKey as! String
+        if let privateKey = walletInfo["importedPrivateKey"] as? String {
+            wallet.importedPrivateKey = privateKey
         }
         
-        if let publicKey = walletInfo["importedPublicKey"] {
-            wallet.importedPublicKey = publicKey as! String
+        if let publicKey = walletInfo["importedPublicKey"] as? String {
+            wallet.importedPublicKey = publicKey
         }
         
-        if let chain = walletInfo["currencyid"]  {
-            wallet.chain = NSNumber(value: chain as! UInt32)
+        if let chain = walletInfo["currencyid"] as? UInt32 {
+            wallet.chain = NSNumber(value: chain)
         }
         
-        if let chainType = walletInfo["networkid"]  {
-            wallet.chainType = NSNumber(value: chainType as! UInt32)
+        if let chainType = walletInfo["networkid"] as? UInt32 {
+            wallet.chainType = NSNumber(value: chainType)
         }
         
         //MARK: to be deleted
-        if let walletID = walletInfo["WalletIndex"]  {
-            wallet.walletID = NSNumber(value: walletID as! Int32)
+        if let walletID = walletInfo["WalletIndex"] as? Int32 {
+            wallet.walletID = NSNumber(value: walletID)
         }
         
-        if let walletID = walletInfo["walletindex"]  {
-            wallet.walletID = NSNumber(value: walletID as! Int32)
+        if let walletID = walletInfo["walletindex"] as? Int32 {
+            wallet.walletID = NSNumber(value: walletID)
         }
         
-        if let walletName = walletInfo["walletname"] {
-            wallet.name = walletName as! String
+        if let walletName = walletInfo["walletname"] as? String {
+            wallet.name = walletName
         }
         
         if let brokenState = walletInfo["brokenStatus"] as? NSNumber {
@@ -493,17 +494,17 @@ class UserWalletRLM: Object {
     
     public func updateWalletWithInfo(walletInfo: NSDictionary) {
         //MARK: to be deleted
-        if let addresses = walletInfo["Adresses"] {
-            self.addresses = AddressRLM.initWithArray(addressesInfo: addresses as! NSArray)
+        if let addresses = walletInfo["Adresses"] as? NSArray {
+            self.addresses = AddressRLM.initWithArray(addressesInfo: addresses)
         }
         
         if let address = walletInfo["address"] as? NSDictionary {
             self.historyAddress = AddressRLM.initWithInfo(addressInfo: address)
         }
         
-        if let addresses = walletInfo["addresses"] {
+        if let addresses = walletInfo["addresses"] as? NSArray {
             if !(addresses is NSNull) {
-                self.addresses = AddressRLM.initWithArray(addressesInfo: addresses as! NSArray)
+                self.addresses = AddressRLM.initWithArray(addressesInfo: addresses)
             }
         }
         
@@ -928,7 +929,7 @@ extension WalletUpdateRLM {
             }
             
             if let isDeleted = multisig["status"] as? Bool {
-                multisigWallet!.isDeleted = NSNumber(booleanLiteral: isDeleted)
+                multisigWallet!.isDeleted = isDeleted
             }
             
             if let TxOfCreation = multisig["txOfCreation"] as? String {

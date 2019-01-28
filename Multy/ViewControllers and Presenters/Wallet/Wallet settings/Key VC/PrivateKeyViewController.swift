@@ -69,7 +69,7 @@ class PrivateKeyViewController: UIViewController {
     }
     
     func makePrivateKey() -> String {
-        if wallet!.isImportedForPrimaryKey {
+        if wallet!.isImportedOrFixed {
             return wallet!.importedPrivateKey
         } else {
             var binaryData = account!.binaryDataString.createBinaryData()!

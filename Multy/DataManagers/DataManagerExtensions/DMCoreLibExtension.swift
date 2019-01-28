@@ -396,7 +396,7 @@ extension CoreLibInfoManager {
             return nil
         }
         
-        if wallet.isImportedForPrimaryKey {
+        if wallet.isImportedOrFixed {
             if wallet.importedPrivateKey.isEmpty {
                 return nil
             } else {
@@ -781,7 +781,7 @@ extension MultisigManager {
 //        var addressData: Dictionary<String, Any>?
 //
 ////        if wallet.isImported {
-//        if wallet.isImportedForPrimaryKey {
+//        if wallet.isImportedOrFixed {
 //            let accountDataResult = coreLibManager.createPublicInfo(blockchainType: blockchainType, privateKey: wallet.importedPrivateKey)
 //
 //            switch accountDataResult {

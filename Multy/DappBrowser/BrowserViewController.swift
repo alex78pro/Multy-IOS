@@ -366,7 +366,7 @@ extension BrowserViewController {
         
 //        var addressData = Dictionary<String, Any>()
 //
-//        if wallletFromDB.isImportedForPrimaryKey {
+//        if wallletFromDB.isImportedOrFixed {
 //            if wallletFromDB.importedPrivateKey.isEmpty == false {
 //                let data = DataManager.shared.coreLibManager.createPublicInfo(blockchainType: wallletFromDB.blockchainType, privateKey: wallletFromDB.importedPrivateKey)
 //                switch data {

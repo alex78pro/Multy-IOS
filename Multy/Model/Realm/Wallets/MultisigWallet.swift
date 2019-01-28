@@ -21,7 +21,7 @@ class MultisigWallet: Object {
         
     @objc dynamic var deployStatus = NSNumber(value: 0)
     
-    @objc dynamic var isDeleted = NSNumber(booleanLiteral: false)
+    @objc dynamic var isDeleted = false
     
     @objc dynamic var linkedWalletID = String()
     

@@ -519,84 +519,84 @@ extension WalletManager {
         }
     }
     
-    public func updateWalletsInAcc(arrOfWallets: List<UserWalletRLM>, completion: @escaping(_ account: AccountRLM?, _ error: NSError?)->()) {
-        getRealm { [weak self] (realmOpt, err) in
-            if let realm = realmOpt {
-                let acc = realm.object(ofType: AccountRLM.self, forPrimaryKey: 1)
-                if acc != nil {
-                    let accWallets = acc!.wallets
-                    let newWallets = List<UserWalletRLM>()
-                    
-                    for wallet in arrOfWallets {
-                        let modifiedWallet = accWallets.filter {$0.id == wallet.id}.first
-                        
-                        try! realm.write {
-                            if modifiedWallet != nil {
-                                modifiedWallet!.name =              wallet.name
-                                modifiedWallet!.addresses =         wallet.addresses
-                                modifiedWallet!.isTherePendingTx =  wallet.isTherePendingTx
-                                modifiedWallet!.btcWallet =         wallet.btcWallet
-                                
-                                let delETH = modifiedWallet?.ethWallet
-                                let delM = modifiedWallet?.multisigWallet
-                                
-                                modifiedWallet?.ethWallet       = wallet.ethWallet
-                                modifiedWallet!.multisigWallet  = wallet.multisigWallet
-                                
-                                if delETH != nil {
-                                    realm.delete(delETH!.erc20Tokens)
-                                    realm.delete(delETH!)
-                                }
-                                
-                                if delM != nil {
-                                    realm.delete(delM!.owners)
-                                    realm.delete(delM!)
-                                }
-
-                                modifiedWallet?.lastActivityTimestamp = wallet.lastActivityTimestamp
-                                modifiedWallet?.isSyncing =         wallet.isSyncing
-                                modifiedWallet?.brokenState =       wallet.brokenState
-                                
-                                newWallets.append(modifiedWallet!)
-                            } else {
-                                newWallets.append(wallet)
-                            }
-                        }
-                    }
-                    
-                    try! realm.write {
-                        self!.deleteNotUsedMSWalletFromDB(realm: realm, newWallets: newWallets)
-                        for wallet in newWallets {
-                            acc!.wallets.append(wallet)
-                            
-                            self!.deleteAddressesAndSpendableInfo(acc!.wallets.last!.addresses, from: realm)
-                            
-                            acc!.wallets.last!.addresses.removeAll()
-                            
-                            //MARK: CHECK THIS    deleting addresses    Check addressID and delete existing
-                            for address in wallet.addresses {
-                                acc!.wallets.last!.addresses.append(address)
-                            }
-                        }
-                        
-                        completion(acc, nil)
-                    }
-                } else {
-                    completion(nil, err)
-                }
-            }
-        }
-    }
+//    public func updateWalletsInAcc(arrOfWallets: List<UserWalletRLM>, completion: @escaping(_ account: AccountRLM?, _ error: NSError?)->()) {
+//        getRealm { [weak self] (realmOpt, err) in
+//            if let realm = realmOpt {
+//                let acc = realm.object(ofType: AccountRLM.self, forPrimaryKey: 1)
+//                if acc != nil {
+//                    let accWallets = acc!.wallets
+//                    let newWallets = List<UserWalletRLM>()
+//
+//                    for wallet in arrOfWallets {
+//                        let modifiedWallet = accWallets.filter {$0.id == wallet.id}.first
+//
+//                        try! realm.write {
+//                            if modifiedWallet != nil {
+//                                modifiedWallet!.name =              wallet.name
+//                                modifiedWallet!.addresses =         wallet.addresses
+//                                modifiedWallet!.isTherePendingTx =  wallet.isTherePendingTx
+//                                modifiedWallet!.btcWallet =         wallet.btcWallet
+//
+//                                let delETH = modifiedWallet?.ethWallet
+//                                let delM = modifiedWallet?.multisigWallet
+//
+//                                modifiedWallet?.ethWallet       = wallet.ethWallet
+//                                modifiedWallet!.multisigWallet  = wallet.multisigWallet
+//
+//                                if delETH != nil {
+//                                    realm.delete(delETH!.erc20Tokens)
+//                                    realm.delete(delETH!)
+//                                }
+//
+//                                if delM != nil {
+//                                    realm.delete(delM!.owners)
+//                                    realm.delete(delM!)
+//                                }
+//
+//                                modifiedWallet?.lastActivityTimestamp = wallet.lastActivityTimestamp
+//                                modifiedWallet?.isSyncing =         wallet.isSyncing
+//                                modifiedWallet?.brokenState =       wallet.brokenState
+//
+//                                newWallets.append(modifiedWallet!)
+//                            } else {
+//                                newWallets.append(wallet)
+//                            }
+//                        }
+//                    }
+//
+//                    try! realm.write {
+//                        self!.deleteNotUsedMSWalletFromDB(realm: realm, newWallets: newWallets)
+//                        for wallet in newWallets {
+//                            acc!.wallets.append(wallet)
+//
+//                            self!.deleteAddressesAndSpendableInfo(acc!.wallets.last!.addresses, from: realm)
+//
+//                            acc!.wallets.last!.addresses.removeAll()
+//
+//                            //MARK: CHECK THIS    deleting addresses    Check addressID and delete existing
+//                            for address in wallet.addresses {
+//                                acc!.wallets.last!.addresses.append(address)
+//                            }
+//                        }
+//
+//                        completion(acc, nil)
+//                    }
+//                } else {
+//                    completion(nil, err)
+//                }
+//            }
+//        }
+//    }
     
-    func deleteNotUsedMSWalletFromDB(realm: Realm, newWallets: List<UserWalletRLM>) {
-        for wallet in newWallets {
-            let walletFromDB = realm.object(ofType: UserWalletRLM.self, forPrimaryKey: wallet.id)
-            if walletFromDB != nil && account!.wallets.contains(walletFromDB!) == false {
-                deleteWallet(wallet, realm: realm)
-            }
-        }
-        account!.wallets.removeAll()
-    }
+//    func deleteNotUsedMSWalletFromDB(realm: Realm, newWallets: List<UserWalletRLM>) {
+//        for wallet in newWallets {
+//            let walletFromDB = realm.object(ofType: UserWalletRLM.self, forPrimaryKey: wallet.id)
+//            if walletFromDB != nil && account!.wallets.contains(walletFromDB!) == false {
+//                deleteWallet(wallet, realm: realm)
+//            }
+//        }
+//        account!.wallets.removeAll()
+//    }
     
     func getWallet(walletID: NSNumber, completion: @escaping(_ wallet: UserWalletRLM?) -> ()) {
         getRealm { (realmOpt, error) in
@@ -803,26 +803,26 @@ extension WalletManager {
 //        }
 //    }
     
-    func deleteWallet(_ wallet: UserWalletRLM, realm: Realm) {
-        //FIXME: only for non-multisig wallets
-        let walletToDelete = realm.object(ofType: UserWalletRLM.self, forPrimaryKey: wallet.id)
-        
-        if walletToDelete!.btcWallet != nil {
-            realm.delete(walletToDelete!.btcWallet!)
-        }
-        
-        if walletToDelete!.ethWallet != nil {
-            realm.delete(walletToDelete!.ethWallet!)
-        }
-        
-        if walletToDelete!.multisigWallet != nil {
-            walletToDelete?.multisigWallet?.owners.forEach { realm.delete($0) }
-            
-            realm.delete(walletToDelete!.multisigWallet!)
-        }
-        
-        realm.delete(walletToDelete!)
-    }
+//    func deleteWallet(_ wallet: UserWalletRLM, realm: Realm) {
+//        //FIXME: only for non-multisig wallets
+//        let walletToDelete = realm.object(ofType: UserWalletRLM.self, forPrimaryKey: wallet.id)
+//
+//        if walletToDelete!.btcWallet != nil {
+//            realm.delete(walletToDelete!.btcWallet!)
+//        }
+//
+//        if walletToDelete!.ethWallet != nil {
+//            realm.delete(walletToDelete!.ethWallet!)
+//        }
+//
+//        if walletToDelete!.multisigWallet != nil {
+//            walletToDelete?.multisigWallet?.owners.forEach { realm.delete($0) }
+//
+//            realm.delete(walletToDelete!.multisigWallet!)
+//        }
+//
+//        realm.delete(walletToDelete!)
+//    }
     
 //    func fetchAddressesForWalllet(walletID: NSNumber, completion: @escaping(_ : [String]?) -> ()) {
 //        getWallet(walletID: walletID) { (wallet) in
@@ -1147,6 +1147,14 @@ extension RealmMigrationManager {
         migration.enumerateObjects(ofType: HistoryRLM.className()) { (_, newValue) in
             newValue?["walletPrimaryKey"] = String()
         }
+        
+        migration.enumerateObjects(ofType: UserWalletRLM.className()) { (_, newValue) in
+            newValue?["isDeleted"] = false
+        }
+        
+        migration.enumerateObjects(ofType: MultisigWallet.className()) { (oldValue, newValue) in
+            newValue?["isDeleted"] = (oldValue?["isDeleted"] as? NSNumber)?.boolValue ?? false
+        }
     }
 }
 
@@ -1301,6 +1309,8 @@ extension UpdateObjectsManager {
             switch objects.first!.className {
             case HistoryRLM.className():
                 self!.updateHistoryRLMObjects(objects as! [HistoryRLM], in: realm)
+            case UserWalletRLM.className():
+                self!.updateWalletsRLMObjects(objects as! [UserWalletRLM], in: realm)
             default:
                 return
             }
@@ -1318,13 +1328,6 @@ extension UpdateObjectsManager {
             if objects.count == 0 {
                 return
             }
-            
-            switch objects.first!.className {
-            case UserWalletRLM.className():
-                self!.updateWalletsRLMObjects(objects as! [UserWalletRLM], in: realm)
-            default:
-                return
-            }
         }
     }
     
@@ -1334,7 +1337,7 @@ extension UpdateObjectsManager {
         let historyObjects = fetchHistoryRLMObjects(from: realm, for: walletPrimaryKey)
         
         try! realm.write {
-            historyObjects.forEach{
+            historyObjects.forEach {
                 realm.delete($0.txInputs)
                 realm.delete($0.txOutputs)
                 realm.delete($0.exchangeRates)
@@ -1347,15 +1350,49 @@ extension UpdateObjectsManager {
     }
     
     func updateWalletsRLMObjects(_ objects: [UserWalletRLM], in realm: Realm) {
-        let walletsObjects = fetchWalletsRLMObjects(from: realm, for: DataManager.shared.accountType)
+        let walletsObjectsFromDB = fetchWalletsRLMObjects(from: realm, for: DataManager.shared.accountType)
         
         try! realm.write {
-            walletsObjects.forEach{
-                realm.delete($0.txInputs)
-                realm.delete($0.txOutputs)
-                realm.delete($0.exchangeRates)
-                realm.delete($0.walletInput)
-                realm.delete($0.walletOutput)
+            walletsObjectsFromDB.forEach {
+                if $0.historyAddress != nil {
+                    realm.delete($0.historyAddress!.spendableOutput)
+                    realm.delete($0.historyAddress!)
+                }
+                
+                if $0.ethWallet != nil {
+                    realm.delete($0.ethWallet!.erc20Tokens)
+                    realm.delete($0.ethWallet!)
+                }
+                
+                if $0.btcWallet != nil {
+                    realm.delete($0.btcWallet!)
+                }
+                
+                if $0.multisigWallet != nil {
+                    realm.delete($0.multisigWallet!.owners)
+                    realm.delete($0.multisigWallet!)
+                }
+                
+                $0.addresses.forEach {
+                    realm.delete($0.spendableOutput)
+                    realm.delete($0)
+                }
+                
+                //save info stored only locally
+                let primaryKey = $0.primaryKey
+                let wallet = objects.filter{ $0.primaryKey == primaryKey }.first
+                
+                if wallet != nil {
+                    if $0.isImportedOrFixed {
+                        wallet!.importedPrivateKey  = $0.importedPrivateKey
+                        wallet!.importedPublicKey   = $0.importedPublicKey
+                    }
+                    
+                    wallet!.isDeleted = $0.isDeleted
+                } else {
+                    //$0 - is deleted wallet
+                    $0.isDeleted = true
+                }
             }
             
             realm.add(objects, update: true)
@@ -1395,7 +1432,10 @@ extension GetObjectsManager {
     
     //UserWallets
     private func fetchWalletsRLMObjects(from realm: Realm, for accountType: AccountType) -> Results<UserWalletRLM> {
-        return fetchObjects(of: UserWalletRLM.self, from: realm).filter("\(WalletProperty.accountType) == '\(accountType.rawValue)'")
+        let allWallets = fetchObjects(of: UserWalletRLM.self, from: realm).filter("\(WalletProperty.accountType) == '\(accountType.rawValue)'")
+        
+        //filter deleted eallets (created/imported and MS)
+        return allWallets.filter("\(WalletProperty.isDeleted) = \(false) AND (\(WalletProperty.multisigWallet) = nil OR \(WalletProperty.multisigWallet).\(WalletProperty.isDeleted) = \(false))")
     }
     
     func fetchTimeSortedWalletsRLMObjects(from realm: Realm, for accountType: AccountType = DataManager.shared.accountType, ascending: Bool = false) -> Results<UserWalletRLM> {
