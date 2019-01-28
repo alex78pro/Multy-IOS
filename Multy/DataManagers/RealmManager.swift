@@ -490,64 +490,6 @@ extension WalletManager {
         }
     }
     
-    public func createOrUpdateAccount(accountInfo: NSArray, completion: @escaping(_ account: AccountRLM?, _ error: NSError?)->()) {
-        getRealm { [weak self] (realmOpt, err) in
-            guard let realm = realmOpt else {
-                completion(nil, nil)
-                
-                return
-            }
-            
-            let account = realm.object(ofType: AccountRLM.self, forPrimaryKey: 1)
-            
-            guard account != nil else {
-                completion(nil, nil)
-                
-                return
-            }
-            
-            let accountWallets = account!.wallets
-            let newWallets = List<UserWalletRLM>()
-            
-            for wallet in accountInfo {
-                let wallet = wallet as! NSDictionary
-                let walletID = wallet["WalletIndex"] != nil ? wallet["WalletIndex"] : wallet["walletindex"]
-                
-                let modifiedWallet = accountWallets.filter("walletID = \(walletID)").first
-                
-                try! realm.write {
-                    //                    if modifiedWallet != nil {
-                    //                        modifiedWallet!.addresses = wallet.addresses
-                    //                        newWallets.append(modifiedWallet!)
-                    //                    } else {
-                    //                        newWallets.append(wallet)
-                    //                    }
-                }
-            }
-            
-            try! realm.write {
-                account!.wallets.removeAll()
-                for wallet in newWallets {
-                    account!.wallets.append(wallet)
-                    
-                    account!.wallets.last!.addresses.removeAll()
-                    for address in wallet.addresses {
-                        account!.wallets.last!.addresses.append(address)
-                        
-                        account!.wallets.last!.addresses.last!.spendableOutput.removeAll()
-                        for ouput in address.spendableOutput {
-                            account?.wallets.last!.addresses.last!.spendableOutput.append(ouput)
-                        }
-                    }
-                }
-                
-                self!.account = account
-                
-                completion(account, nil)
-            }
-        }
-    }
-    
     public func updateImportedWalletsInAcc(arrOfWallets: List<UserWalletRLM>, completion: @escaping(_ account: AccountRLM?, _ error: NSError?)->()) {
         getRealm { [weak self] (realmOpt, err) in
             if let realm = realmOpt {
@@ -742,7 +684,7 @@ extension WalletManager {
         getRealm { (realmOpt, err) in
             if let realm = realmOpt {
                 let wallets = realm.objects(UserWalletRLM.self).filter("chainType = \(isTestNet.intValue) AND chain = \(BLOCKCHAIN_BITCOIN.rawValue)")
-                let walletsArr = Array(wallets.sorted(by: {$0.availableSumInCrypto > $1.availableSumInCrypto}))
+                let walletsArr = Array(wallets.sorted(by: {$0.availableAmount > $1.availableAmount}))
                 
                 completion(walletsArr)
             }
@@ -1373,7 +1315,16 @@ extension UpdateObjectsManager {
             
             self!.realm = realm
             
+            if objects.count == 0 {
+                return
+            }
             
+            switch objects.first!.className {
+            case UserWalletRLM.className():
+                self!.updateWalletsRLMObjects(objects as! [UserWalletRLM], in: realm)
+            default:
+                return
+            }
         }
     }
     
@@ -1394,6 +1345,22 @@ extension UpdateObjectsManager {
             realm.add(objects, update: true)
         }
     }
+    
+    func updateWalletsRLMObjects(_ objects: [UserWalletRLM], in realm: Realm) {
+        let walletsObjects = fetchWalletsRLMObjects(from: realm, for: DataManager.shared.accountType)
+        
+        try! realm.write {
+            walletsObjects.forEach{
+                realm.delete($0.txInputs)
+                realm.delete($0.txOutputs)
+                realm.delete($0.exchangeRates)
+                realm.delete($0.walletInput)
+                realm.delete($0.walletOutput)
+            }
+            
+            realm.add(objects, update: true)
+        }
+    }
 }
 
 extension GetObjectsManager {
@@ -1401,6 +1368,7 @@ extension GetObjectsManager {
         return realm.objects(type)
     }
     
+    //History
     private func fetchHistoryRLMObjects(from realm: Realm, for walletPrimaryKey: String) -> Results<HistoryRLM> {
         //we are updating txs in one wallet
         //txId - primaryKey
@@ -1422,6 +1390,43 @@ extension GetObjectsManager {
             self!.realm = realm
             
             completion(self!.fetchSortedHistoryRLMObjects(from: realm, for: walletPrimaryKey))
+        }
+    }
+    
+    //UserWallets
+    private func fetchWalletsRLMObjects(from realm: Realm, for accountType: AccountType) -> Results<UserWalletRLM> {
+        return fetchObjects(of: UserWalletRLM.self, from: realm).filter("\(WalletProperty.accountType) == '\(accountType.rawValue)'")
+    }
+    
+    func fetchTimeSortedWalletsRLMObjects(from realm: Realm, for accountType: AccountType = DataManager.shared.accountType, ascending: Bool = false) -> Results<UserWalletRLM> {
+        return fetchWalletsRLMObjects(from: realm, for: accountType).sorted(byKeyPath: WalletProperty.lastActivityTimestamp.rawValue, ascending: ascending)
+    }
+    
+    func fetchValueSortedWalletsRLMObjects(from realm: Realm, for accountType: AccountType = DataManager.shared.accountType, ascending: Bool = false) -> Results<UserWalletRLM> {
+        return fetchWalletsRLMObjects(from: realm, for: accountType).sorted(byKeyPath: WalletProperty.availableAmount.rawValue, ascending: ascending)
+    }
+    
+    func fetchTimeSortedWalletsRLMObjects(for accountType: AccountType = DataManager.shared.accountType, completion: @escaping(_ historyArray: Results<UserWalletRLM>) -> ()) {
+        getRealm { [weak self] (realmOpt, error) in
+            guard let realm = realmOpt, self != nil else {
+                return
+            }
+            
+            self!.realm = realm
+            
+            completion(self!.fetchTimeSortedWalletsRLMObjects(from: realm, for: accountType))
+        }
+    }
+    
+    func fetchValueSortedWalletsRLMObjects(for accountType: AccountType = DataManager.shared.accountType, completion: @escaping(_ historyArray: Results<UserWalletRLM>) -> ()) {
+        getRealm { [weak self] (realmOpt, error) in
+            guard let realm = realmOpt, self != nil else {
+                return
+            }
+            
+            self!.realm = realm
+            
+            completion(self!.fetchValueSortedWalletsRLMObjects(from: realm, for: accountType))
         }
     }
 }

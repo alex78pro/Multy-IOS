@@ -106,7 +106,7 @@ class ReceiveStartPresenter: NSObject {
                 
                 walletsArray = walletsArray.filter{ !$0.isMultiSig || ($0.isMultiSig && $0.multisigWallet!.isDeployed) }
                 
-                self.walletsArr = walletsArray.sorted(by: { $0.availableSumInCrypto > $1.availableSumInCrypto })
+                self.walletsArr = walletsArray.sorted(by: { $0.availableAmount > $1.availableAmount })
                 self.receiveStartVC?.updateUI()
             }
         }
@@ -126,7 +126,7 @@ class ReceiveStartPresenter: NSObject {
                 nonMSwallets = nonMSwallets.filter{ self.displayedBlockchainOnly == $0.blockchainType }
             }
             
-            self.walletsArr = nonMSwallets.sorted(by: { $0.availableSumInCrypto > $1.availableSumInCrypto })
+            self.walletsArr = nonMSwallets.sorted(by: { $0.availableAmount > $1.availableAmount })
             self.receiveStartVC?.updateUI()
         }
     }

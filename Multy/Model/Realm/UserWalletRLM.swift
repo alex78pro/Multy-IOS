@@ -25,7 +25,7 @@ enum WalletBrokenState: Int, CaseIterable {
 }
 
 enum WalletProperty: String {
-    case id
+    case id, accountType, lastActivityTimestamp, availableAmount
 }
 
 class UserWalletRLM: Object {
@@ -48,6 +48,7 @@ class UserWalletRLM: Object {
     @objc dynamic var importedPublicKey = String()
     
     @objc dynamic var brokenState = NSNumber(value: 0)
+    @objc dynamic var accountType = NSNumber(value: DataManager.shared.accountType.rawValue)
     
     var changeAddressIndex: UInt32 {
         get {
@@ -192,14 +193,6 @@ class UserWalletRLM: Object {
 
     var blockchain: Blockchain {
         return blockchainType.blockchain
-    }
-    
-    var availableSumInCrypto: Double {
-        if self.blockchainType.blockchain == BLOCKCHAIN_BITCOIN {
-            return availableAmount.cryptoValueString(for: BLOCKCHAIN_BITCOIN).stringWithDot.doubleValue
-        } else {
-            return 0
-        }
     }
     
     var shouldCreateNewAddressAfterTransaction: Bool {

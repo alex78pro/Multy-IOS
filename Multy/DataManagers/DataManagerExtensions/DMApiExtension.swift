@@ -237,8 +237,8 @@ extension DataManager {
                         
                         return
                     }
+                    
                     let walletsArrayFromApi = answer!["wallets"] as! NSArray
-//                    let walletsArr = UserWalletRLM.initWithArray(walletsInfo: walletsArrayFromApi)
                     completion(walletsArrayFromApi, nil)
                 } else {
                     //MARK: delete

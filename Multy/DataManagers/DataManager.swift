@@ -339,14 +339,13 @@ extension FCMDelegate {
     }
     
     func getActiveAccountsWalletsWithoutMSFor(blockchainType: BlockchainType) -> [UserWalletRLM] {
-        if realmManager.account == nil {
+        if realmManager.account == nil || realmManager.realm == nil {
             return [UserWalletRLM]()
         }
         
-        var wallets = Array(realmManager.account!.wallets)
-        //modify for tokens
-        wallets = wallets.filter{ $0.blockchainType == blockchainType && $0.isMultiSig == false && $0.isImportedHasKey }
+        let wallets = realmManager.fetchValueSortedWalletsRLMObjects(from: realmManager.realm!)
+        let filteredWallets = wallets.filter{ $0.blockchainType == blockchainType && $0.isMultiSig == false && $0.isImportedHasKey }
         
-        return wallets
+        return Array(filteredWallets)
     }
 }

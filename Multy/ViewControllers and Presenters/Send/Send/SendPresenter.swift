@@ -18,7 +18,7 @@ class SendPresenter: NSObject {
     var isSocketInitiateUpdating = false
     var isWalletAnalyticsSent = false
     
-    var walletsArr = Array<UserWalletRLM>() {
+    var walletsArr = [UserWalletRLM]() {
         didSet {
             filterArray()
         }
@@ -262,17 +262,7 @@ class SendPresenter: NSObject {
     }
     
     func getWallets() {
-        DataManager.shared.apiManager.real
-        DataManager.shared.getAccount { [unowned self] (acc, err) in
-            if err == nil {
-                // MARK: check this
-                if acc != nil && acc!.wallets.count > 0 {
-                    self.account = acc
-                    self.walletsArr = acc!.wallets.sorted(by: {
-                        $0.availableSumInCrypto > $1.availableSumInCrypto })
-                }
-            }
-        }
+        DataManager.shared.realmManager.fetchValueSortedWalletsRLMObjects { self.walletsArr = Array($0) }
     }
     
     func getWalletsVerbose() {
@@ -284,7 +274,7 @@ class SendPresenter: NSObject {
                 print("afterVerbose:rawdata: \(walletsArrayFromApi)")
                 DataManager.shared.realmManager.updateWalletsInAcc(arrOfWallets: walletsArr, completion: { [weak self] (acc, err) in
                     if self != nil {
-                        self!.account = acc
+//                        self!.account = acc
                         self!.walletsArr = acc!.wallets.sorted(by: {
                             $0.availableSumInCrypto > $1.availableSumInCrypto
                         })
@@ -308,30 +298,6 @@ class SendPresenter: NSObject {
         isSocketInitiateUpdating = true
         getWalletsVerbose()
     }
-    
-//    func getWalletsVerbose(completion: @escaping (_ flag: Bool) -> ()) {
-//        DataManager.shared.getWalletsVerbose() {[unowned self] (walletsArrayFromApi, err) in
-//            if err != nil {
-//                return
-//            } else {
-//                let walletsArr = UserWalletRLM.initWithArray(walletsInfo: walletsArrayFromApi!)
-//                print("afterVerbose:rawdata: \(walletsArrayFromApi)")
-//                DataManager.shared.realmManager.updateWalletsInAcc(arrOfWallets: walletsArr, completion: { [unowned self] (acc, err) in
-//                    self.account = acc
-//                    
-//                    if acc != nil && acc!.wallets.count > 0 {
-//                        self.selectedWalletIndex = 0
-//                        
-//                        self.walletsArr = acc!.wallets.sorted(by: { $0.availableSumInCrypto > $1.availableSumInCrypto })
-//                    }
-//                    
-//                    print("wallets: \(acc?.wallets)")
-//                    completion(true)
-//                })
-//            }
-//        }
-//    }
-    
     
     private func createTransactionDTO() {
         if isSendingAvailable && filteredWalletArray.count > selectedWalletIndex!  {
@@ -449,7 +415,7 @@ class SendPresenter: NSObject {
     
     var addressData : Dictionary<String, Any>?
     var binaryData : BinaryData?
-    var account = DataManager.shared.realmManager.account
+//    var account = DataManager.shared.realmManager.account
     var feeAmount = BigInt("0")
     
     func createPreliminaryData(completion: @escaping (_ succeeded : Bool) -> ()) {
