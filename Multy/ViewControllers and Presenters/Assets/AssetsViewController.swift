@@ -186,7 +186,7 @@ class AssetsViewController: UIViewController, QrDataProtocol, AnalyticsProtocol,
     
     override func viewDidAppear(_ animated: Bool) {
         if self.presenter.isJailed {
-            self.presentUpdateAlert(idOfAlert: 0)
+            self.presentUpdateAlert(idOfAlert: 1)
 //            self.presentWarningAlert(message: localize(string: Constants.jailbrokenDeviceWarningString))
         }
         self.navigationController?.interactivePopGestureRecognizer?.isEnabled = false

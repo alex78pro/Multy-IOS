@@ -87,9 +87,9 @@ class TokenRLM: Object {
         return contractAddress.hash
     }
     
-    override var hashValue: Int {
-        return contractAddress.hashValue
-    }
+//    override var hashValue: Int {
+//        return contractAddress.hashValue
+//    }
     
     public override func isEqual(_ object: Any?) -> Bool {
         if let token = object as? TokenRLM {

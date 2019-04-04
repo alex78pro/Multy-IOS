@@ -12,6 +12,7 @@ class CustomTabBarViewController: RAMAnimatedTabBarController, UITabBarControlle
     let presenter = CustomTabBarPresenter()
     // MARK: - View lifecycle
 
+
     let menuButton = UIButton()
     var previousSelectedIndex = 0
     var browserCoordinator: BrowserCoordinator?
