@@ -95,6 +95,10 @@ struct Constants {
         static let mainnetETHUrl = "https://mainnet.infura.io/v3/78ae782ed28e48c0b3f74ca69c4f7ca8"
         static let testnetETHUrl = "https://rinkeby.infura.io/v3/78ae782ed28e48c0b3f74ca69c4f7ca8"
     }
+    
+    static func infuraURL(_ wallet: UserWalletRLM) -> String {
+        return wallet.chain.intValue == 1 ? Infura.mainnetETHUrl : Infura.testnetETHUrl
+    }
 }
 
 extension LocalizeDelegate: Localizable {

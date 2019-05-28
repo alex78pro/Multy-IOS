@@ -5,6 +5,7 @@
 import UIKit
 import Alamofire
 import FirebaseMessaging
+import Firebase
 //import MultyCoreLibrary
 
 class AccessTokenAdapter: RequestAdapter {

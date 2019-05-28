@@ -5,6 +5,7 @@ import UIKit
 import WebKit
 import JavaScriptCore
 import Result
+import Web3
 //typealias ResultDapp<T, Error: Swift.Error> = Result
 
 private typealias LocalizeDelegate = BrowserViewController
@@ -25,6 +26,11 @@ protocol BrowserViewControllerDelegate: class {
 class BrowserViewController: UIViewController, AnalyticsProtocol {
     
     private var myContext = 0
+    
+    private lazy var web3: Web3 = {
+        return Web3(rpcURL: Constants.infuraURL(wallet))
+    }()
+    
     var wallet = UserWalletRLM() {
         didSet {
             if wallet.id.isEmpty == false {
@@ -99,8 +105,6 @@ class BrowserViewController: UIViewController, AnalyticsProtocol {
         return config
     }()
     
-    var lastTxID = ""
-    
     
     init(wallet: UserWalletRLM, urlString: String) {
         self.wallet = wallet
@@ -146,9 +150,9 @@ class BrowserViewController: UIViewController, AnalyticsProtocol {
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         
-        refreshURL()
+//        refreshURL()
         
-        NotificationCenter.default.addObserver(self, selector: #selector(self.handleTransactionUpdatedNotification(notification :)), name: NSNotification.Name("transactionUpdated"), object: nil)
+//        NotificationCenter.default.addObserver(self, selector: #selector(self.handleTransactionUpdatedNotification(notification :)), name: NSNotification.Name("transactionUpdated"), object: nil)
     }
     
     override func viewWillDisappear(_ animated: Bool) {
@@ -164,23 +168,23 @@ class BrowserViewController: UIViewController, AnalyticsProtocol {
         }
     }
     
-    @objc fileprivate func handleTransactionUpdatedNotification(notification : Notification) {
-        DispatchQueue.main.async { [unowned self] in
-            print(notification)
-            
-            let msg = notification.userInfo?["NotificationMsg"] as? [AnyHashable : Any]
-            guard msg != nil, let txID = msg!["txid"] as? String else {
-                return
-            }
-            
-            if txID == self.lastTxID {
-                self.webView.reload()
-                self.webView.scrollView.setContentOffset(CGPoint.zero, animated: true)
-            }
-            
-            self.lastTxID = ""
-        }
-    }
+//    @objc fileprivate func handleTransactionUpdatedNotification(notification : Notification) {
+//        DispatchQueue.main.async { [unowned self] in
+//            print(notification)
+//
+//            let msg = notification.userInfo?["NotificationMsg"] as? [AnyHashable : Any]
+//            guard msg != nil, let txID = msg!["txid"] as? String else {
+//                return
+//            }
+//
+//            if txID == self.lastTxID {
+//                self.webView.reload()
+//                self.webView.scrollView.setContentOffset(CGPoint.zero, animated: true)
+//            }
+//
+//            self.lastTxID = ""
+//        }
+//    }
     
     func goTo(url: URL) {
         webView.load(URLRequest(url: url))
@@ -288,33 +292,26 @@ extension BrowserViewController: WKNavigationDelegate {
 
 extension BrowserViewController: WKScriptMessageHandler {
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
-        let body = message.body as! Dictionary<String, Any>
+        guard let body = message.body as? Dictionary<String, Any>,
+            let id = body["id"] as? Int64 else { return }
         
-        guard let name = body["name"] as? String else {
-            //FIXME: callback for WebView?
-            return
+        guard let name = body["name"] as? String,
+            let operationType = DappOperationType.init(rawValue: name),
+            let objectData = body["object"] as? Dictionary<String, Any> else {
+                cancelledJScode(for: id)
+                
+                return
         }
         
-        guard let operationType = DappOperationType.init(rawValue: name) else {
-            return
-        }
-        
-        guard let objectData = body["object"] as? Dictionary<String, Any> else {
-            return
-        }
-        
-        
-        let operationObject = OperationObject.init(with: objectData)
+        let operationObject = OperationObject.init(with: objectData, for: id)
         
         switch operationType {
         case .signTransaction:
             showAlert(with: operationObject)
-        case .signMessage:
-            return
-        case .signPersonalMessage:
-            return
+        case .signMessage, .signPersonalMessage:
+            signMessage(OperationObject.init(with: objectData, for: id))
         case .signTypedMessage:
-            return
+            break
         }
     }
 }
@@ -322,21 +319,48 @@ extension BrowserViewController: WKScriptMessageHandler {
 
 //perfom operations
 extension BrowserViewController {
-    func refreshWalletAndSendTx(for object: OperationObject) {
+    func signMessage(_ object: OperationObject) {
+        if object.hexData.isEmpty {
+            cancelledJScode(for: object.id)
+            
+            return
+        }
+        
+        let signResult = DataManager.shared.signMessage(object.hexData, wallet: wallet)
+        
+        switch signResult {
+        case .success(let signString):
+            evaluateJS(object.id, "0x" + signString)
+        case .failure(let error):
+            presentAlert(for: error)
+            cancelledJScode(for: object.id)
+        }
+    }
+    
+    func refreshWalletAndShowAlert(for object: OperationObject) {
         DataManager.shared.getOneWalletVerbose(wallet: wallet) { [unowned self] (wallet, error) in
             if error != nil {
-                self.webView.reload()
-                self.webView.scrollView.setContentOffset(CGPoint.zero, animated: true)
+                self.cancelledJScode(for: object.id)
                 self.presentAlert(for: "") // default message
             } else {
                 self.wallet = wallet!
-                self.signTx(for: object)
+                self.showAlert(with: object)
             }
         }
     }
     
     func showAlert(with txInfo: OperationObject) {
         let localizedFormatString = localize(string: Constants.browserTxAlertSring)
+        
+        //small available balance
+        if BigInt("\(txInfo.value)") + (BigInt("\(txInfo.gasLimit)") * BigInt("\(txInfo.gasPrice)")) >= wallet.availableAmount {
+            presentAlert(for: "Transaction is trying to spend more than available")
+            
+            cancelledJScode(for: txInfo.id)
+            
+            return
+        }
+        
         let valueString = BigInt("\(txInfo.value)").cryptoValueString(for: wallet.blockchain)
         let feeString = (BigInt("\(txInfo.gasLimit)") * BigInt("\(txInfo.gasPrice)")).cryptoValueString(for: wallet.blockchain)
         
@@ -345,109 +369,123 @@ extension BrowserViewController {
         
         alert.addAction(UIAlertAction(title: localize(string: Constants.denyString), style: .default, handler: { [weak self] (action) in
             if self != nil {
-                self!.webView.reload()
-                self!.webView.scrollView.setContentOffset(CGPoint.zero, animated: true)
+                self!.cancelledJScode(for: txInfo.id)
             }
         }))
         
         alert.addAction(UIAlertAction(title: localize(string: Constants.confirmString), style: .cancel, handler: { [weak self] (action) in
             if self != nil {
-                self!.refreshWalletAndSendTx(for: txInfo)
+                self!.sendTxViaWeb3(object: txInfo)
             }
         }))
         
         present(alert, animated: true, completion: nil)
     }
     
-    func signTx(for object: OperationObject) {
-//        let account = DataManager.shared.realmManager.account
-//        let core = DataManager.shared.coreLibManager
-//        var binaryData = account!.binaryDataString.createBinaryData()!
+    func sendTxViaWeb3(object: OperationObject) {
+        let info = DataManager.shared.privateInfo(for: wallet)
         
-//        var addressData = Dictionary<String, Any>()
-//
-//        if wallletFromDB.isImportedForPrimaryKey {
-//            if wallletFromDB.importedPrivateKey.isEmpty == false {
-//                let data = DataManager.shared.coreLibManager.createPublicInfo(blockchainType: wallletFromDB.blockchainType, privateKey: wallletFromDB.importedPrivateKey)
-//                switch data {
-//                case .success(let dict):
-//                    addressData = dict
-//                case .failure(let error):
-//                    //FIXME: add ALERT
-//                    break
-//                }
-//            } else {
-//                //FIXME: add ALERT
-//            }
-//        } else {
-//            addressData = core.createAddress(blockchainType:    wallet.blockchainType,
-//                                             walletID:          wallet.walletID.uint32Value,
-//                                             addressID:         wallet.changeAddressIndex,
-//                                             binaryData:        &binaryData)!
-//        }
+        precondition(wallet.ethWallet != nil, "This is not a Ethereum wallet")
         
-        let dappPayload = object.hexData
+        sendTX(nonce: wallet.ethWallet!.nonce.uint64Value, gasPrice: object.gasPrice, gasLimit: object.gasLimit, fromAddress: object.fromAddress, toAddress: object.toAddress, value: object.value, data: object.hexData, privateKey: info!["privateKey"] as! String, id: object.id)
+    }
+    
+    func sendTX(nonce: UInt64, gasPrice: BigUInt, gasLimit: BigUInt, fromAddress: String, toAddress: String, value: String, data: String, privateKey: String, id: Int64) {
+        let nonceQuantity = EthereumQuantity(integerLiteral: nonce)
+        let gasQuantity = EthereumQuantity(quantity: gasPrice)
+        let gasLimitQuantity = EthereumQuantity(quantity: gasLimit)
+        let fromEtherAddress = EthereumAddress(hexString: fromAddress)
+        let toEtherAddress = EthereumAddress(hexString: toAddress)
+        let etherValue = EthereumQuantity(quantity: BigUInt(value)!)
+        let etherData = EthereumData(bytes: data.hexToBytes())
         
-        let trData = DataManager.shared.createETHTransaction(wallet: wallet,
-                                                             sendAmountString: object.value,
-                                                             destinationAddress: object.toAddress,
-                                                             gasPriceAmountString: "\(object.gasPrice)",
-                                                             gasLimitAmountString: "\(object.gasLimit)",
-                                                             payload: dappPayload)
+        let tx = EthereumTransaction(nonce: nonceQuantity, gasPrice: gasQuantity, gas: gasLimitQuantity, from: fromEtherAddress, to: toEtherAddress, value: etherValue, data: etherData)
         
-//        let trData2 = DataManager.shared.coreLibManager.createEtherTransaction(addressPointer: addressData["addressPointer"] as! UnsafeMutablePointer<OpaquePointer?>,
-//                                                                              sendAddress: object.toAddress,
-//                                                                              sendAmountString: object.value,
-//                                                                              nonce: wallet.ethWallet!.nonce.intValue,
-//                                                                              balanceAmount: wallet.ethWallet!.balance,
-//                                                                              ethereumChainID: UInt32(wallet.blockchainType.net_type),
-//                                                                              gasPrice: "\(object.gasPrice)",
-//                                                                              gasLimit: "\(object.gasLimit)",
-//                                                                              payload: dappPayload)
-        let rawTransaction = trData.message
+        let etherPrivKey = try! EthereumPrivateKey(hexPrivateKey: privateKey)
+        let etherChainID = EthereumQuantity(integerLiteral: wallet.chain.uint64Value)
+        let signed = try! tx.sign(with: etherPrivKey, chainId: etherChainID)
         
-        guard trData.isTransactionCorrect else {
-            self.webView.reload()
-            self.presentAlert(for: rawTransaction)
+        web3.eth.sendRawTransaction(transaction: signed) { [weak self] (response) in
+            if self == nil { return }
             
-            return
-        }
-        
-        let newAddressParams = [
-            "walletindex"   : wallet.walletID.intValue,
-            "address"       : wallet.address,
-            "addressindex"  : 0,
-            "transaction"   : rawTransaction,
-            "ishd"          : wallet.shouldCreateNewAddressAfterTransaction
-            ] as [String : Any]
-        
-        let params = [
-            "currencyid": wallet.chain,
-            /*"JWT"       : jwtToken,*/
-            "networkid" : wallet.chainType,
-            "payload"   : newAddressParams
-            ] as [String : Any]
-        
-        DataManager.shared.sendHDTransaction(transactionParameters: params) { [unowned self] (dict, error) in
-            if dict != nil {
-                self.saveLastTXID(from:  dict!)
+            switch response.status {
+            case .success(let result):
+                debugPrint(result)
                 
-                self.showSuccessAlert()
-                self.webView.reload()
-                self.webView.scrollView.setContentOffset(CGPoint.zero, animated: true)
+                DispatchQueue.main.async {
+                    self!.evaluateJS(id, result.hex())
+                }
                 
-                let amountString = BigInt("\(object.value)").cryptoValueString(for: self.wallet.blockchain)
-                self.sendDappAnalytics(screenName: browserTx, params: self.makeAnalyticsParams(sendAmountString: amountString,
-                                                                                               gasPrice: "\(object.gasPrice)",
-                                                                                               gasLimit: "\(object.gasLimit)",
-                                                                                               contractMethod: String(dappPayload.prefix(8))))
-            } else {
-                self.presentAlert(for: "")
-                self.webView.reload()
-                self.webView.scrollView.setContentOffset(CGPoint.zero, animated: true)
+                let amountString = BigInt("\(value)").cryptoValueString(for: self!.wallet.blockchain)
+                self!.sendDappAnalytics(screenName: browserTx, params: self!.makeAnalyticsParams(sendAmountString: amountString,
+                                                                                                 gasPrice: "\(gasPrice)",
+                                                                                                 gasLimit: "\(gasLimit)",
+                                                                                                 contractMethod: String(data.prefix(8))))
+            case .failure(let error):
+                debugPrint(error)
+                
+                DispatchQueue.main.async {
+                    self!.cancelledJScode(for: id)
+                }
+                
+                self!.presentAlert(for: "Error while sending tx")
             }
         }
     }
+    
+//    func signTx(for object: OperationObject) {
+//        let dappPayload = object.hexData
+//
+//        let trData = DataManager.shared.createETHTransaction(wallet: wallet,
+//                                                             sendAmountString: object.value,
+//                                                             destinationAddress: object.toAddress,
+//                                                             gasPriceAmountString: "\(object.gasPrice)",
+//                                                             gasLimitAmountString: "\(object.gasLimit)",
+//                                                             payload: dappPayload)
+//
+//        let rawTransaction = trData.message
+//
+//        guard trData.isTransactionCorrect else {
+//            self.webView.reload()
+//            self.presentAlert(for: rawTransaction)
+//
+//            return
+//        }
+//
+//        let newAddressParams = [
+//            "walletindex"   : wallet.walletID.intValue,
+//            "address"       : wallet.address,
+//            "addressindex"  : 0,
+//            "transaction"   : rawTransaction,
+//            "ishd"          : wallet.shouldCreateNewAddressAfterTransaction
+//            ] as [String : Any]
+//
+//        let params = [
+//            "currencyid": wallet.chain,
+//            /*"JWT"       : jwtToken,*/
+//            "networkid" : wallet.chainType,
+//            "payload"   : newAddressParams
+//            ] as [String : Any]
+//
+//        DataManager.shared.sendHDTransaction(transactionParameters: params) { [unowned self] (dict, error) in
+//            if dict != nil {
+//                self.saveLastTXID(from:  dict!)
+//
+//                self.showSuccessAlert()
+//                self.webView.reload()
+//                self.webView.scrollView.setContentOffset(CGPoint.zero, animated: true)
+//
+//                let amountString = BigInt("\(object.value)").cryptoValueString(for: self.wallet.blockchain)
+//                self.sendDappAnalytics(screenName: browserTx, params: self.makeAnalyticsParams(sendAmountString: amountString,
+//                                                                                               gasPrice: "\(object.gasPrice)",
+//                                                                                               gasLimit: "\(object.gasLimit)",
+//                                                                                               contractMethod: String(dappPayload.prefix(8))))
+//            } else {
+//                self.presentAlert(for: "")
+//                self.cancelledJScode(for: object.id)
+//            }
+//        }
+//    }
     
     func makeAnalyticsParams(sendAmountString: String, gasPrice: String, gasLimit: String, contractMethod: String) -> NSDictionary {
         let params: NSDictionary = [
@@ -489,22 +527,6 @@ extension BrowserViewController {
         alert.addAction(UIAlertAction(title: "OK", style: .cancel, handler: { (action) in }))
         present(alert, animated: true, completion: nil)
     }
-    
-    func saveLastTXID(from info: NSDictionary) {
-        guard let code = info["code"] as? Int, code == 200 else {
-            return
-        }
-        
-        guard let message = info["message"] as? NSDictionary else {
-            return
-        }
-        
-        guard let txID = message["message"] as? String else {
-            return
-        }
-        
-        lastTxID = txID
-    }
 }
 
 extension LocalizeDelegate: Localizable {
@@ -512,3 +534,32 @@ extension LocalizeDelegate: Localizable {
         return "DappBrowser"
     }
 }
+
+extension BrowserViewController {
+    func evaluateJS(_ id: Int64, _ message: String) {
+        webView.evaluateJavaScript(callback(id, message, true)) { [weak self] (response, error) in //window.ethereum.sendResponse(\(id), \"\(message)\")
+            debugPrint("response:  \(response), error: \(error)")
+            debugPrint("after JS")
+            if error != nil {
+                self?.cancelledJScode(for: id) //"window.ethereum.sendError(\(id), \"Canceled\")"
+            }
+        }
+    }
+    
+    func cancelledJScode(for id: Int64) {
+        webView.evaluateJavaScript(callback(id, "cancelled", false)) { (_, _) in }
+    }
+    
+    func callback(_ id: Int64, _ value: String, _ isSuccess: Bool) -> String {
+        return isSuccess ? successJSCallback(id, value) : errorJSCallback(id, value)
+    }
+    
+    func successJSCallback(_ id: Int64, _ value: String) -> String {
+        return "executeCallback(\(id), null, \"\(value)\")"
+    }
+    
+    func errorJSCallback(_ id: Int64, _ value: String) -> String {
+        return "executeCallback(\(id), \"\(value)\", null)"
+    }
+}
+

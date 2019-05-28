@@ -56,7 +56,7 @@ const size_t ETHEREUM_BINARY_ADDRESS_SIZE = 20;
  @param signature - OUT hex-encoded signature, with recovery_id set to 27 or 28.
  @return nullptr if no error Error object otherwise.
 */
-MULTY_CORE_API struct MultyError* ethereum_personal_sign(
+MULTY_CORE_API struct Error* ethereum_personal_sign(
         const char* serialized_private_key,
         const char* hex_encoded_message,
         char** signature);

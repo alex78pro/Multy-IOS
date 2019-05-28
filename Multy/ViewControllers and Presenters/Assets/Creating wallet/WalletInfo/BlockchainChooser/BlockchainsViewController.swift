@@ -4,7 +4,7 @@
 
 import UIKit
 import StoreKit
-import SwiftyStoreKit
+//import SwiftyStoreKit
 
 private typealias AnalyticsDelegate = BlockchainsViewController
 private typealias CancelDelegate = BlockchainsViewController

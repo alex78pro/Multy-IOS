@@ -388,6 +388,16 @@ extension CoreLibETHManager {
             return (false, error)
         }
     }
+    
+    func signMessage(_ hexMessage: String, wallet: UserWalletRLM) -> Result<String, String> {
+        let walletInfo = privateInfo(for: wallet)
+        
+        guard let privateKey = walletInfo?["privateKey"] as? String else {
+            return Result.failure("Error creating private key")
+        }
+        
+        return coreLibManager.signMessage(hexMessage, with: privateKey)
+    }
 }
 
 extension CoreLibInfoManager {

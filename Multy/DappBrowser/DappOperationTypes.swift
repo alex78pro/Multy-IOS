@@ -16,15 +16,16 @@ enum DappOperationType : String, Decodable {
 struct OperationObject {
     var chainID:    NSNumber
     var hexData:    String
-    var fromAddress: String
+    var fromAddress:String
     var toAddress:  String
-    var gasPrice:   UInt64
-    var gasLimit:   UInt64
+    var gasPrice:   BigUInt
+    var gasLimit:   BigUInt
     var nonce:      Int
     var value:      String
+    var id:         Int64
     
     
-    init(with object: Dictionary<String, Any>) {
+    init(with object: Dictionary<String, Any>, for id: Int64) {
         if let chainID =  object["chainId"] as? NSNumber {
             self.chainID = chainID
         } else {
@@ -32,7 +33,7 @@ struct OperationObject {
         }
         
         if let hexData =  object["data"] as? String {
-            self.hexData = String(hexData.dropFirst(2))
+            self.hexData = String(hexData)
         } else {
             self.hexData = ""
         }
@@ -50,15 +51,15 @@ struct OperationObject {
         }
         
         if let gas =  object["gas"] as? String {
-            self.gasLimit = UInt64(gas.dropFirst(2), radix: 16)!
+            self.gasLimit = BigUInt(gas.dropFirst(2), radix: 16)!
         } else {
-            self.gasLimit = UInt64("\(2_000_000)")!
+            self.gasLimit = BigUInt("\(2_000_000)")!
         }
         
         if let gasPriceString =  object["gasPrice"] as? String {
-            self.gasPrice = UInt64(gasPriceString.dropFirst(2), radix: 16)!
+            self.gasPrice = BigUInt(gasPriceString.dropFirst(2), radix: 16)!
         } else {
-            self.gasPrice = 0
+            self.gasPrice = BigUInt("\(5_000_000_000)")!
         }
         
         if let nonceString =  object["nonce"] as? String {
@@ -66,6 +67,8 @@ struct OperationObject {
         } else {
             self.nonce = 0
         }
+        
+        self.id = id
         
         //amount
         if let valueString =     object["value"] as? String {

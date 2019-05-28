@@ -1286,6 +1286,24 @@ extension TestCoreLibManager {
 
 //////////////////////////
 extension EthereumCoreLibManager {
+    func signMessage(_ hexMessage: String, with keyString: String) -> Result<String, String> {
+        let keyPointer = keyString.UTF8CStringPointer
+        let hexMessagePointer = hexMessage.UTF8CStringPointer
+        let signedMessage = UnsafeMutablePointer<UnsafeMutablePointer<Int8>?>.allocate(capacity: 1)
+        
+        let eps = ethereum_personal_sign(keyPointer, hexMessagePointer, signedMessage)
+        
+        if eps != nil {
+            let errorMessage = errorString(from: eps!, mask: "ethereum_personal_sign")
+            
+            return Result.failure(errorMessage ?? "Error")
+        }
+        
+        let signedMessageString = String(cString: signedMessage.pointee!)
+        
+        return Result.success(signedMessageString)
+    }
+
     func createEtherTx(from jsonString: String) -> (message: String, isTransactionCorrect: Bool) {
         let jsonStringPointer = jsonString.UTF8CStringPointer
         let txPointer = UnsafeMutablePointer<UnsafePointer<Int8>?>.allocate(capacity: 1)

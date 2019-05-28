@@ -5,11 +5,18 @@
 import Foundation
 import WebKit
 import JavaScriptCore
-import TrustCore
+//import TrustCore
 extension WKWebViewConfiguration {
-
     static func make(for wallet: UserWalletRLM, in messageHandler: WKScriptMessageHandler) -> WKWebViewConfiguration {
         let config = WKWebViewConfiguration()
+        
+        var providerScript: WKUserScript {
+            let path = Bundle.main.path(forResource: "trust-min", ofType: "js")!
+            let scriptString = try! String(contentsOfFile: path)
+            let script = WKUserScript(source: scriptString, injectionTime: .atDocumentStart, forMainFrameOnly: false)
+            
+            return script
+        }
         
         var rpcURL = ""
         
@@ -23,19 +30,7 @@ extension WKWebViewConfiguration {
 
         let chainID = wallet.chainType.intValue
         
-        var js = ""
-
-        guard
-            let bundlePath = Bundle.main.path(forResource: "TrustWeb3Provider", ofType: "bundle"),
-            let bundle = Bundle(path: bundlePath) else { return config }
-
-        if let filepath = bundle.path(forResource: "trust-min", ofType: "js") {
-            do {
-                js += try String(contentsOfFile: filepath)
-            } catch { }
-        }
-
-        js +=
+        let js =
         """
         const addressHex = "\(wallet.address.lowercased())"
         const rpcURL = "\(rpcURL)"
@@ -101,6 +96,8 @@ extension WKWebViewConfiguration {
         config.userContentController.add(messageHandler, name: DappOperationType.signPersonalMessage.rawValue)
         config.userContentController.add(messageHandler, name: DappOperationType.signMessage.rawValue)
         config.userContentController.add(messageHandler, name: DappOperationType.signTypedMessage.rawValue)
+        
+        config.userContentController.addUserScript(providerScript)
         config.userContentController.addUserScript(userScript)
         
         return config

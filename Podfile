@@ -38,11 +38,11 @@ target 'Multy' do
 #  pod 'MultyCoreLibrary'#, '0.1.7'
 
   #dapp
-#  pod 'Result'
-  pod 'TrustCore', :git=>'https://github.com/TrustWallet/trust-core', :commit=>'b539f0ff5d5fa344ba0b910c09bc9c65cb863660'
-  pod 'TrustWeb3Provider', :git=>'https://github.com/TrustWallet/trust-web3-provider', :commit=>'f4e0ebb1b8fa4812637babe85ef975d116543dfd'
-  pod 'JSONRPCKit', :git=> 'https://github.com/bricklife/JSONRPCKit.git'
-  pod 'StatefulViewController'
+  pod 'Result'
+#  pod 'TrustCore', :git=>'https://github.com/TrustWallet/trust-core', :commit=>'b539f0ff5d5fa344ba0b910c09bc9c65cb863660'
+#  pod 'TrustWeb3Provider', :git=>'https://github.com/TrustWallet/trust-web3-provider', :commit=>'f4e0ebb1b8fa4812637babe85ef975d116543dfd'
+#  pod 'JSONRPCKit', :git=> 'https://github.com/bricklife/JSONRPCKit.git'
+#  pod 'StatefulViewController'
   pod 'Arranged'
 
   target 'MultyTests' do
